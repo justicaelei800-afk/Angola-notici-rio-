@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="pt-AO">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Angola Noticiário — Notícias e Acontecimentos de Angola</title>
+  <meta name="description" content="Angola Noticiário: acompanhe notícias, acontecimentos, sociedade, política, economia, cultura e desporto em Angola e no mundo." />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --vermelho: #b91c1c;
+      --vermelho-escuro: #7f1d1d;
+      --amarelo: #eab308;
+      --preto: #111827;
+      --cinza-bg: #f3f4f6;
+      --cinza-texto: #4b5563;
+      --branco: #ffffff;
+      --borda: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--cinza-bg);
+      color: var(--preto);
+      line-height: 1.6;
+    }
+    header {
+      background: var(--preto);
+      color: var(--branco);
+      border-bottom: 4px solid var(--vermelho);
+      position: sticky;
+      top: 0;
+      z-index: 40;
+    }
+    .header-topo {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .marca {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--branco);
+    }
+    .marca-badge {
+      background: var(--vermelho);
+      color: var(--amarelo);
+      font-weight: 800;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      letter-spacing: 0.5px;
+    }
+    .marca h1 { font-size: 1.35rem; font-weight: 800; }
+    .marca span { display: block; font-size: 0.75rem; color: #d1d5db; }
+    .nav-acoes { display: flex; gap: 8px; align-items: center; }
+    button, .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+    .btn-vermelho { background: var(--vermelho); color: var(--branco); }
+    .btn-vermelho:hover { background: var(--vermelho-escuro); }
+    .btn-claro { background: #374151; color: var(--branco); }
+    .btn-claro:hover { background: #4b5563; }
+    .btn-apagar { background: #dc2626; color: var(--branco); padding: 7px 12px; font-size: 0.82rem; }
+    .btn-apagar:hover { background: #991b1b; }
+
+    .barra-categorias {
+      background: var(--branco);
+      border-bottom: 1px solid var(--borda);
+    }
+    .categorias-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 10px 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+    .cat-pill {
+      background: var(--cinza-bg);
+      color: var(--preto);
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .cat-pill.ativa { background: var(--vermelho); color: var(--branco); }
+
+    main {
+      max-width: 1120px;
+      margin: 20px auto;
+      padding: 0 16px 48px;
+      min-height: 65vh;
+    }
+    .barra-pesquisa {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      background: var(--branco);
+      color: var(--preto);
+    }
+    textarea { min-height: 140px; resize: vertical; }
+
+    .destaque {
+      background: var(--branco);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--borda);
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 768px) {
+      .destaque { grid-template-columns: 1.15fr 1fr; }
+    }
+    .destaque img {
+      width: 100%;
+      height: 260px;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    .destaque-corpo { padding: 20px; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .tag {
+      display: inline-block;
+      background: #fef2f2;
+      color: var(--vermelho);
+      font-weight: 700;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      width: fit-content;
+      text-transform: uppercase;
+    }
+    .meta { font-size: 0.8rem; color: var(--cinza-texto); }
+
+    .grelha {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 18px;
+    }
+    .cartao {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .cartao img {
+      width: 100%;
+      height: 190px;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    .cartao-corpo { padding: 15px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+    .cartao h3 { font-size: 1.05rem; line-height: 1.35; cursor: pointer; }
+    .cartao h3:hover { color: var(--vermelho); }
+    .cartao p { font-size: 0.9rem; color: var(--cinza-texto); flex: 1; }
+
+    .caixa-painel {
+      background: var(--branco);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 760px;
+      margin: 0 auto 28px;
+    }
+    .campo { margin-bottom: 14px; }
+    .campo label { display: block; font-weight: 600; margin-bottom: 5px; font-size: 0.9rem; }
+    .preview-img {
+      margin-top: 10px;
+      max-height: 220px;
+      border-radius: 8px;
+      display: none;
+      object-fit: cover;
+    }
+    .lista-admin-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 60;
+    }
+    .modal-bg.aberto { display: flex; }
+    .modal-caixa {
+      background: var(--branco);
+      border-radius: 12px;
+      max-width: 720px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 22px;
+    }
+    .modal-caixa img { width: 100%; max-height: 380px; object-fit: contain; border-radius: 8px; margin: 12px 0; background: #111; }
+
+    footer {
+      background: var(--preto);
+      color: #d1d5db;
+      text-align: center;
+      padding: 22px 16px;
+      font-size: 0.85rem;
+    }
+    .aviso-erro { color: #b91c1c; font-weight: 600; margin-top: 8px; font-size: 0.9rem; }
+    .aviso-ok { color: #15803d; font-weight: 600; margin-top: 8px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-topo">
+      <div class="marca" onclick="mostrarVista('publico')">
+        <div class="marca-badge">AO</div>
+        <div>
+          <h1>Angola Noticiário</h1>
+          <span>Notícias e acontecimentos de Angola para o mundo</span>
+        </div>
+      </div>
+      <div class="nav-acoes">
+        <button class="btn-claro" onclick="mostrarVista('publico')">Início</button>
+        <button class="btn-vermelho" onclick="abrirAdmin()">Área Administrativa</button>
+      </div>
+    </div>
+    <div class="barra-categorias" id="barraCategorias">
+      <div class="categorias-inner" id="listaCategorias"></div>
+    </div>
+  </header>
+
+  <main id="conteudoPrincipal"></main>
+
+  <!-- Modal de leitura completa -->
+  <div class="modal-bg" id="modalLeitura" onclick="fecharModal(event, 'modalLeitura')">
+    <div class="modal-caixa" id="conteudoModalLeitura"></div>
+  </div>
+
+  <footer>
+    <strong>Angola Noticiário</strong> — Informação e acontecimentos de Angola.<br />
+    <span>Publicado para leitores em Angola e em todo o mundo.</span>
+  </footer>
+
+  <script>
+    // =========================================================================
+    // 1. CONFIGURAÇÃO DO SUPABASE (SUBSTITUI PELAS TUAS CHAVES COPIADAS)
+    // =========================================================================
+    const SUPABASE_URL = "https://yeipqhneucwiudubzjwt.supabase.co/rest/v1/";
+    const SUPABASE_ANON_KEY = "sb_publishable_H5lW9u9VYX-e5fyAlSxDTA_3JaKuDEO";
+    const BUCKET_IMAGENS = "imagens";
+
+    // Credenciais administrativas solicitadas
+    const ADMIN_USER = "justiça e lei";
+    const ADMIN_PASS = "justiça e lei 1 2 3 4";
+
+    const CATEGORIAS = ["Todas", "Nacional", "Política", "Sociedade", "Economia", "Cultura", "Desporto", "Províncias"];
+
+    let supabaseClient = null;
+    if (SUPABASE_URL.startsWith("http") && SUPABASE_ANON_KEY.length > 20) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    let noticias = [];
+    let categoriaAtiva = "Todas";
+    let termoPesquisa = "";
+    let autenticado = sessionStorage.getItem("angola_noticiario_auth") === "1";
+
+    function normalizarTexto(txt) {
+      return (txt || "").trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    function escaparHTML(str) {
+      return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatarData(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      return d.toLocaleString("pt-AO", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    async function carregarNoticias() {
+      if (!supabaseClient) {
+        noticias = JSON.parse(localStorage.getItem("angola_noticiario_local") || "[]");
+        return;
+      }
+      const { data, error } = await supabaseClient
+        .from("noticias")
+        .select("*")
+        .order("criado_em", { ascending: false });
+
+      if (!error && data) {
+        noticias = data;
+      }
+    }
+
+    function renderizarCategorias() {
+      const el = document.getElementById("listaCategorias");
+      el.innerHTML = CATEGORIAS.map(cat =>
+        `<button class="cat-pill ${cat === categoriaAtiva ? "ativa" : ""}" onclick="selecionarCategoria('${cat}')">${cat}</button>`
+      ).join("");
+    }
+
+    function selecionarCategoria(cat) {
+      categoriaAtiva = cat;
+      renderizarCategorias();
+      renderizarPublico();
+    }
+
+    function mostrarVista(vista) {
+      document.getElementById("barraCategorias").style.display = vista === "publico" ? "block" : "none";
+      if (vista === "publico") {
+        renderizarCategorias();
+        renderizarPublico();
+      } else {
+        renderizarAdmin();
+      }
+    }
+
+    async function renderizarPublico() {
+      await carregarNoticias();
+      const main = document.getElementById("conteudoPrincipal");
+
+      const filtradas = noticias.filter(n => {
+        const bateCat = categoriaAtiva === "Todas" || n.categoria === categoriaAtiva;
+        const busca = normalizarTexto(termoPesquisa);
+        const bateBusca = !busca ||
+          normalizarTexto(n.titulo).includes(busca) ||
+          normalizarTexto(n.resumo).includes(busca) ||
+          normalizarTexto(n.conteudo).includes(busca);
+        return bateCat && bateBusca;
+      });
+
+      let html = `
+        <div class="barra-pesquisa">
+          <input type="search" placeholder="Pesquisar notícias ou acontecimentos em Angola..." value="${escaparHTML(termoPesquisa)}" oninput="termoPesquisa = this.value; renderizarPublico();" />
+        </div>
+      `;
+
+      if (!supabaseClient) {
+        html += `<div class="caixa-painel"><p class="aviso-erro">Atenção: ainda não colaste o teu Project URL e a anon public key do Supabase no código. As notícias abaixo estão apenas guardadas neste navegador até configurares o Supabase.</p></div>`;
+      }
+
+      if (filtradas.length === 0) {
+        html += `<div class="caixa-painel"><p>Ainda não existem notícias publicadas nesta categoria ou pesquisa. Entra na <strong>Área Administrativa</strong> para publicar a primeira notícia.</p></div>`;
+        main.innerHTML = html;
+        return;
+      }
+
+      const [destaque, ...restantes] = filtradas;
+      html += `
+        <article class="destaque">
+          ${destaque.imagem_url ? `<img src="${escaparHTML(destaque.imagem_url)}" alt="${escaparHTML(destaque.titulo)}" onclick="abrirNoticia(${destaque.id})" />` : ""}
+          <div class="destaque-corpo">
+            <span class="tag">${escaparHTML(destaque.categoria)}</span>
+            <h2 style="font-size:1.45rem; cursor:pointer;" onclick="abrirNoticia(${destaque.id})">${escaparHTML(destaque.titulo)}</h2>
+            <div class="meta">Publicado em ${formatarData(destaque.criado_em)}</div>
+            <p>${escaparHTML(destaque.resumo || destaque.conteudo.slice(0, 180) + "...")}</p>
+            <div><button class="btn-vermelho" onclick="abrirNoticia(${destaque.id})">Ler notícia completa</button></div>
+          </div>
+        </article>
+      `;
+
+      if (restantes.length > 0) {
+        html += `<div class="grelha">`;
+        for (const n of restantes) {
+          html += `
+            <article class="cartao">
+              ${n.imagem_url ? `<img src="${escaparHTML(n.imagem_url)}" alt="${escaparHTML(n.titulo)}" onclick="abrirNoticia(${n.id})" />` : ""}
+              <div class="cartao-corpo">
+                <span class="tag">${escaparHTML(n.categoria)}</span>
+                <h3 onclick="abrirNoticia(${n.id})">${escaparHTML(n.titulo)}</h3>
+                <div class="meta">${formatarData(n.criado_em)}</div>
+                <p>${escaparHTML(n.resumo || n.conteudo.slice(0, 120) + "...")}</p>
+                <button class="btn-claro" onclick="abrirNoticia(${n.id})">Ler mais</button>
+              </div>
+            </article>
+          `;
+        }
+        html += `</div>`;
+      }
+
+      main.innerHTML = html;
+    }
+
+    function abrirNoticia(id) {
+      const n = noticias.find(item => String(item.id) === String(id));
+      if (!n) return;
+      const modal = document.getElementById("conteudoModalLeitura");
+      modal.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+          <span class="tag">${escaparHTML(n.categoria)}</span>
+          <button class="btn-claro" onclick="fecharModalDireto('modalLeitura')">Fechar</button>
+        </div>
+        <h2 style="margin-top:10px; font-size:1.4rem;">${escaparHTML(n.titulo)}</h2>
+        <div class="meta">Publicado em ${formatarData(n.criado_em)}</div>
+        ${n.imagem_url ? `<img src="${escaparHTML(n.imagem_url)}" alt="${escaparHTML(n.titulo)}" />` : ""}
+        ${n.resumo ? `<p style="font-weight:600; margin-bottom:10px;">${escaparHTML(n.resumo)}</p>` : ""}
+        <div style="white-space:pre-line;">${escaparHTML(n.conteudo)}</div>
+      `;
+      document.getElementById("modalLeitura").classList.add("aberto");
+    }
+
+    function fecharModal(event, id) {
+      if (event.target.id === id) fecharModalDireto(id);
+    }
+
+    function fecharModalDireto(id) {
+      document.getElementById(id).classList.remove("aberto");
+    }
+
+    function abrirAdmin() {
+      mostrarVista("admin");
+    }
+
+    async function renderizarAdmin() {
+      document.getElementById("barraCategorias").style.display = "none";
+      const main = document.getElementById("conteudoPrincipal");
+
+      if (!autenticado) {
+        main.innerHTML = `
+          <div class="caixa-painel">
+            <h2>Login — Área Administrativa</h2>
+            <p class="meta" style="margin-bottom:16px;">Acesso restrito para publicar e gerir notícias do Angola Noticiário.</p>
+            <form onsubmit="fazerLogin(event)">
+              <div class="campo">
+                <label for="loginUser">Nome de utilizador</label>
+                <input type="text" id="loginUser" required placeholder="Digite o nome de utilizador" />
+              </div>
+              <div class="campo">
+                <label for="loginPass">Senha</label>
+                <input type="password" id="loginPass" required placeholder="Digite a senha" />
+              </div>
+              <button type="submit" class="btn-vermelho">Entrar no Painel</button>
+              <div id="msgLogin"></div>
+            </form>
+          </div>
+        `;
+        return;
+      }
+
+      await carregarNoticias();
+      const opcoesCat = CATEGORIAS.filter(c => c !== "Todas")
+        .map(c => `<option value="${c}">${c}</option>`).join("");
+
+      let listaHtml = "";
+      if (noticias.length === 0) {
+        listaHtml = `<p class="meta">Nenhuma notícia publicada até ao momento.</p>`;
+      } else {
+        listaHtml = noticias.map(n => `
+          <div class="lista-admin-item">
+            <div>
+              <strong>${escaparHTML(n.titulo)}</strong>
+              <div class="meta">${escaparHTML(n.categoria)} • ${formatarData(n.criado_em)}</div>
+            </div>
+            <button class="btn-apagar" onclick="apagarNoticia('${n.id}')">Apagar</button>
+          </div>
+        `).join("");
+      }
+
+      main.innerHTML = `
+        <div class="caixa-painel">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px;">
+            <div>
+              <h2>Painel Administrativo</h2>
+              <span class="meta">Sessão iniciada como: <strong>${escaparHTML(ADMIN_USER)}</strong></span>
+            </div>
+            <button class="btn-claro" onclick="terminarSessao()">Sair</button>
+          </div>
+
+          <form onsubmit="publicarNoticia(event)">
+            <div class="campo">
+              <label for="tituloNoticia">Título da notícia ou acontecimento *</label>
+              <input type="text" id="tituloNoticia" required placeholder="Ex.: Inauguração de nova infraestrutura em Luanda" />
+            </div>
+
+            <div class="campo">
+              <label for="categoriaNoticia">Categoria *</label>
+              <select id="categoriaNoticia" required>${opcoesCat}</select>
+            </div>
+
+            <div class="campo">
+              <label for="resumoNoticia">Resumo curto (opcional)</label>
+              <input type="text" id="resumoNoticia" placeholder="Resumo rápido do acontecimento" />
+            </div>
+
+            <div class="campo">
+              <label for="conteudoNoticia">Texto completo da notícia / acontecimento *</label>
+              <textarea id="conteudoNoticia" required placeholder="Escreva aqui todos os detalhes do acontecimento..."></textarea>
+            </div>
+
+            <div class="campo">
+              <label for="fotoFicheiro">Carregar foto do dispositivo (opcional)</label>
+              <input type="file" id="fotoFicheiro" accept="image/*" onchange="preVisualizarFoto(this)" />
+              <img id="previewFoto" class="preview-img" alt="Pré-visualização da foto" />
+            </div>
+
+            <div class="campo">
+              <label for="fotoUrl">Ou colar link de imagem (opcional)</label>
+              <input type="url" id="fotoUrl" placeholder="https://..." oninput="preVisualizarUrl(this.value)" />
+            </div>
+
+            <button type="submit" id="btnPublicar" class="btn-vermelho">Publicar Notícia</button>
+            <div id="msgAdmin"></div>
+          </form>
+        </div>
+
+        <div class="caixa-painel">
+          <h3>Notícias Publicadas (${noticias.length})</h3>
+          <p class="meta" style="margin-bottom:12px;">Podes apagar qualquer notícia a qualquer momento.</p>
+          ${listaHtml}
+        </div>
+      `;
+    }
+
+    function fazerLogin(event) {
+      event.preventDefault();
+      const userDigitado = normalizarTexto(document.getElementById("loginUser").value);
+      const passDigitada = normalizarTexto(document.getElementById("loginPass").value);
+      const msg = document.getElementById("msgLogin");
+
+      if (userDigitado === normalizarTexto(ADMIN_USER) && passDigitada === normalizarTexto(ADMIN_PASS)) {
+        autenticado = true;
+        sessionStorage.setItem("angola_noticiario_auth", "1");
+        renderizarAdmin();
+      } else {
+        msg.innerHTML = `<p class="aviso-erro">Nome de utilizador ou sen
