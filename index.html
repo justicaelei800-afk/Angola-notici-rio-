@@ -262,7 +262,6 @@
 
   <main id="conteudoPrincipal"></main>
 
-  <!-- Modal de leitura completa -->
   <div class="modal-bg" id="modalLeitura" onclick="fecharModal(event, 'modalLeitura')">
     <div class="modal-caixa" id="conteudoModalLeitura"></div>
   </div>
@@ -275,12 +274,11 @@
   <script>
     // =========================================================================
     // 1. CONFIGURAÇÃO DO SUPABASE (SUBSTITUI PELAS TUAS CHAVES COPIADAS)
-    // =========================================================================
+      // =========================================================================
     const SUPABASE_URL = "https://yeipqhneucwiudubzjwt.supabase.co/rest/v1/";
     const SUPABASE_ANON_KEY = "sb_publishable_H5lW9u9VYX-e5fyAlSxDTA_3JaKuDEO";
     const BUCKET_IMAGENS = "imagens";
 
-    // Credenciais administrativas solicitadas
     const ADMIN_USER = "justiça e lei";
     const ADMIN_PASS = "justiça e lei 1 2 3 4";
 
@@ -559,4 +557,129 @@
         sessionStorage.setItem("angola_noticiario_auth", "1");
         renderizarAdmin();
       } else {
-        msg.innerHTML = `<p class="aviso-erro">Nome de utilizador ou sen
+        msg.innerHTML = `<p class="aviso-erro">Nome de utilizador ou senha incorretos.</p>`;
+      }
+    }
+
+    function terminarSessao() {
+      autenticado = false;
+      sessionStorage.removeItem("angola_noticiario_auth");
+      mostrarVista("publico");
+    }
+
+    function preVisualizarFoto(input) {
+      const img = document.getElementById("previewFoto");
+      const file = input.files && input.files[0];
+      if (!file) {
+        img.style.display = "none";
+        return;
+      }
+      img.src = URL.createObjectURL(file);
+      img.style.display = "block";
+    }
+
+    function preVisualizarUrl(url) {
+      const img = document.getElementById("previewFoto");
+      if (!url) {
+        img.style.display = "none";
+        return;
+      }
+      img.src = url;
+      img.style.display = "block";
+    }
+
+    async function publicarNoticia(event) {
+      event.preventDefault();
+      const btn = document.getElementById("btnPublicar");
+      const msg = document.getElementById("msgAdmin");
+      btn.disabled = true;
+      btn.textContent = "A publicar...";
+      msg.innerHTML = "";
+
+      const titulo = document.getElementById("tituloNoticia").value.trim();
+      const categoria = document.getElementById("categoriaNoticia").value;
+      const resumo = document.getElementById("resumoNoticia").value.trim();
+      const conteudo = document.getElementById("conteudoNoticia").value.trim();
+      const fileInput = document.getElementById("fotoFicheiro");
+      let imagemUrl = document.getElementById("fotoUrl").value.trim() || null;
+
+      try {
+        if (fileInput.files && fileInput.files[0]) {
+          const ficheiro = fileInput.files[0];
+          if (supabaseClient) {
+            const extensao = (ficheiro.name.split(".").pop() || "jpg").toLowerCase();
+            const nomeUnico = `noticia-${Date.now()}.${extensao}`;
+            const { error: uploadError } = await supabaseClient.storage
+              .from(BUCKET_IMAGENS)
+              .upload(nomeUnico, ficheiro, { cacheControl: "3600", upsert: false });
+
+            if (uploadError) throw uploadError;
+
+            const { data: pubData } = supabaseClient.storage
+              .from(BUCKET_IMAGENS)
+              .getPublicUrl(nomeUnico);
+            imagemUrl = pubData.publicUrl;
+          } else {
+            imagemUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(ficheiro);
+            });
+          }
+        }
+
+        if (supabaseClient) {
+          const { error } = await supabaseClient.from("noticias").insert([{
+            titulo,
+            categoria,
+            resumo: resumo || null,
+            conteudo,
+            imagem_url: imagemUrl
+          }]);
+          if (error) throw error;
+        } else {
+          const locais = JSON.parse(localStorage.getItem("angola_noticiario_local") || "[]");
+          locais.unshift({
+            id: Date.now(),
+            titulo,
+            categoria,
+            resumo: resumo || null,
+            conteudo,
+            imagem_url: imagemUrl,
+            criado_em: new Date().toISOString()
+          });
+          localStorage.setItem("angola_noticiario_local", JSON.stringify(locais));
+        }
+
+        msg.innerHTML = `<p class="aviso-ok">Notícia publicada com sucesso!</p>`;
+        setTimeout(() => renderizarAdmin(), 600);
+      } catch (err) {
+        msg.innerHTML = `<p class="aviso-erro">Erro ao publicar: ${escaparHTML(err.message || err)}</p>`;
+        btn.disabled = false;
+        btn.textContent = "Publicar Notícia";
+      }
+    }
+
+    async function apagarNoticia(id) {
+      if (!confirm("Tens a certeza de que queres apagar esta notícia?")) return;
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from("noticias").delete().eq("id", id);
+        if (error) {
+          alert("Erro ao apagar notícia: " + error.message);
+          return;
+        }
+      } else {
+        const locais = JSON.parse(localStorage.getItem("angola_noticiario_local") || "[]")
+          .filter(n => String(n.id) !== String(id));
+        localStorage.setItem("angola_noticiario_local", JSON.stringify(locais));
+      }
+
+      renderizarAdmin();
+    }
+
+    mostrarVista("publico");
+  </script>
+</body>
+</html>
+
